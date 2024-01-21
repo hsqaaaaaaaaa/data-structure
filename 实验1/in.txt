@@ -1,0 +1,12 @@
+xiaoming
+10001
+男
+2004 03 11
+guangzhou
+1
+xiaohong
+10002
+女
+2004 10 23
+guangzhou 
+2

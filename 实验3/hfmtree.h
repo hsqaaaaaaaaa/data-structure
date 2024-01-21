@@ -1,0 +1,456 @@
+#pragma once
+#include<iostream>
+#include<fstream>
+#include<string>
+#include<vector>
+#include<map>
+#include <bitset>  
+#include"hfmnode.h"
+#include"heap.h"
+using namespace std;
+
+class hfmtree
+{
+public:
+	hfmnode* root = NULL;
+	hfmnode* head = NULL;
+	void deletehfm();
+	void deletehfmtree(hfmnode* t);
+	void creathfmtree(int n);
+	void merge(hfmnode* leftchild, hfmnode* rightchild, hfmnode* &parent);
+	void HFMtreecode(string s);
+	void hfmtreecode(hfmnode* root, string s);
+	void save_to_hfmtree(int n);
+	void Print(ofstream& outfile);
+	void print(hfmnode* root, ofstream& outfile);
+	void encoding(string filein,string fileout);
+	void Code(hfmnode* p, ofstream& outfile, char s,int notice);
+	void decoding(string filein,string fileout);
+	void decode(hfmnode* p, string str, ofstream& outfile, int& note);
+	void show(string filein, string fileout);
+	long long ststistic(string filename);
+	void generateCodes(hfmnode* root, string code, map<char, string>& codeMap);
+	long long compress(string filein, string fileout);
+	void Output(string filename);
+	void output(hfmnode* p, string str, ostream& out);
+	bool compressionrate(const char* filein, const char* fileout);
+};
+
+//将树申请的空间释放外层函数
+void hfmtree::deletehfm()
+{
+	deletehfmtree(root);
+	deletehfmtree(head);
+}
+//将树申请的空间释放内层函数
+void hfmtree::deletehfmtree(hfmnode*t)
+{
+	if (t != NULL)
+	{
+		deletehfmtree(t->left);
+		deletehfmtree(t->right);
+		delete t;
+	}
+}
+
+//将两棵树合并生成树根
+void hfmtree::merge(hfmnode* left, hfmnode* right, hfmnode*& parent)
+{
+	parent = new hfmnode;
+	parent->left = left;
+	parent->right = right;
+	parent->weight = left->weight + right->weight;
+	left->parent = right->parent = parent;
+}
+
+//新建一棵哈夫曼树
+void hfmtree::creathfmtree(int n)
+{
+	hfmnode* parent = NULL;
+	MinHeap<hfmnode>hp(300);
+
+	for (int i = 0; i < n; i++)
+	{
+		hfmnode* node = new hfmnode;
+		cin >> node->c >> node->weight;
+		if (node->c == '@')node->c = ' ';
+		node->parent = node;
+		hp.Insert(*node);
+	}
+	
+	for (int i = 0; i < n - 1; i++)
+	{
+		hfmnode* first = new hfmnode;
+		hfmnode* second = new hfmnode;
+		hp.RemoveMin(*first);
+		hp.RemoveMin(*second);
+		merge(first, second, parent);
+		hp.Insert(*parent);
+	}
+	root = parent;
+}
+
+//给哈夫曼树进行编码外层函数
+void hfmtree::HFMtreecode(string s)
+{
+	if (root != NULL)hfmtreecode(root, s);
+	if (head != NULL)hfmtreecode(head, s);
+}
+//给哈夫曼树进行编码内层函数
+void hfmtree::hfmtreecode(hfmnode* root, string s)
+{
+	if (root == NULL) return;
+
+	root->code = s;
+	hfmtreecode(root->left, s + "0");
+	hfmtreecode(root->right, s + "1");
+	
+}
+
+//打印哈夫曼树外层函数
+void hfmtree::Print(ofstream& outfile)
+{
+	if (root != NULL)print(root, outfile);
+	if (head != NULL)print(head, outfile);
+}
+//打印哈夫曼树内层函数
+void hfmtree::print(hfmnode* root,ofstream&outfile)
+{
+	if (root == NULL)return;
+
+	
+	print(root->left, outfile);
+	print(root->right, outfile);
+	if (root->left == NULL && root->right == NULL)outfile << "character:" << root->c << "\tweight:" << root->weight << "\tcode:" << root->code << "\tleftcild:" << root->left << "\trightchild:" << root->right << "\tparent:" << root->parent << endl;
+}
+
+//将哈夫曼树储存在对应文件中
+void hfmtree::save_to_hfmtree(int n)
+{
+	ofstream outfile("hfmTree.txt", ios::out);
+	if (!outfile)
+	{
+		cout << "Open Error!" << endl;
+		exit(1);
+	}
+
+	Print(outfile);
+
+	outfile.close();
+}
+
+//用构造好的哈夫曼树对指定文件中的内容进行编码外层
+void hfmtree::encoding(string filein,string fileout)
+{
+	ifstream infile(filein, ios::in);
+	ofstream outfile(fileout, ios::out);
+	if (!infile)
+	{
+		cout << "Infile Open Error!" << endl;
+		exit(1);
+	}
+	if (!outfile)
+	{
+		cout << "Outfile Open Error!" << endl;
+		exit(1);
+	}
+
+	char s;
+	hfmnode* p = NULL;
+	int choice;
+	if (root != NULL)
+	{
+		p = root;
+		choice = 0;
+	}
+	if (head != NULL)
+	{
+		p = head;
+		choice = 1;
+	}
+	while (infile.peek() != EOF)
+	{
+		infile.get(s);
+		Code(p, outfile, s, choice);
+	}
+	infile.close();
+	outfile.close();
+}
+//用构造好的哈夫曼树对指定文件中的内容进行编码内层
+void hfmtree::Code(hfmnode* p, ofstream& outfile, char s, int notice)
+{
+	
+	if (p == NULL)return;
+	if (notice == 0) if (s == '@')s = ' ';
+	if (p->c == s)
+	{
+		outfile << p->code;
+		return;
+	}
+	Code(p->left, outfile, s, notice);
+	Code(p->right, outfile, s, notice);
+	
+}
+
+//用构造好的哈夫曼树对指定文件中的内容进行译码外层
+void hfmtree::decoding(string filein, string fileout)
+{
+	ifstream infile(filein, ios::in);
+	ofstream outfile(fileout, ios::out);
+	if (!infile)
+	{
+		cout << "Infile Open Error!" << endl;
+		exit(1);
+	}
+	if (!outfile)
+	{
+		cout << "Outfile Open Error!" << endl;
+		exit(1);
+	}
+
+	string code = "";
+	char c;
+	hfmnode* p = NULL;
+	if (root != NULL)p = root;
+	if (head != NULL)p = head;
+	while (infile.peek()!=EOF)
+	{
+		int note = 0;
+		infile >> c;
+		code += c;
+		decode(p, code, outfile,note);
+		if (note == 1)code = "";
+	}
+	
+	infile.close();
+	outfile.close();
+}
+//用构造好的哈夫曼树对指定文件中的内容进行译码内层
+void hfmtree::decode(hfmnode*p,string str,ofstream&outfile,int &note)
+{
+		if (p == NULL || note == 1)return;
+
+		if (p->code == str && p->c != '^')
+		{
+			outfile << p->c << flush;
+			note = 1;
+			return;
+		}
+		decode(p->left, str, outfile, note);
+		decode(p->right, str, outfile, note);
+	
+	
+}
+
+//输出储存在对应文件中的编码结果
+void hfmtree::show(string filein, string fileout)
+{
+	ifstream infile(filein, ios::in);
+	ofstream outfile(fileout, ios::out);
+	if (!infile)
+	{
+		cout << "Infile Open Error!" << endl;
+		exit(1);
+	}
+	if (!outfile)
+	{
+		cout << "Outfile Open Error!" << endl;
+		exit(1);
+	}
+
+	string str;
+	infile >> str;
+	cout << str << endl;
+	outfile << str;
+
+	infile.close();
+	outfile.close();
+}
+
+//统计文章中出现的字符及其个数并生成一棵新哈夫曼树
+long long hfmtree::ststistic(string filename)
+{
+	ifstream infile(filename, ios::in);
+	if (!infile)
+	{
+		cout << "Infile Open Error!" << endl;
+		exit(1);
+	}
+
+	hfmnode* parent = NULL;
+	MinHeap<hfmnode> HP(300);
+	long long sum = 0;
+
+	vector<long long>total(256, 0); // Assuming ASCII characters.  
+
+	while (infile.peek() != EOF) 
+	{
+		char s;
+		infile.get(s);
+		if (static_cast<unsigned char>(s) < total.size()) {
+			total[static_cast<unsigned char>(s)] += 1;
+		}
+	}
+
+	for (long long i = 0; i < total.size(); i++)
+	{
+		if (total[i] != 0) {
+			cout << char(i) << "->" << total[i] << endl;
+			hfmnode* node = new hfmnode;
+			node->c = char(i);
+			node->weight = total[i];
+			node->parent = node;
+			HP.Insert(*node);
+			sum++;
+		}
+	}
+
+	for (long long i = 0; i < sum - 1; i++)
+	{
+		hfmnode* first = new hfmnode;
+		hfmnode* second = new hfmnode;
+		HP.RemoveMin(*first);
+		HP.RemoveMin(*second);
+		merge(first, second, parent);
+		HP.Insert(*parent);
+	}
+	head = parent;
+	infile.close();
+	return sum;
+}
+
+//编码映射
+void hfmtree::generateCodes(hfmnode* node, string code, map<char, string>& codeMap)
+{
+	if (node == NULL)
+	{
+		return;
+	}
+	codeMap[node->c] = code;
+	// 非叶节点，递归生成左右子树的编码映射    
+	generateCodes(node->left, code + "0", codeMap);
+	generateCodes(node->right, code + "1", codeMap);
+}
+// 压缩函数 
+long long hfmtree::compress(string filein, string fileout)
+
+{
+
+	ifstream infile(filein, ios::in);
+	ofstream outfile(fileout, ios::binary | ios::out);
+
+	if (!infile)
+	{
+		cout << "Infile Open Error!" << endl;
+		exit(1);
+	}
+
+	if (!outfile)
+	{
+		cout << "Outfile Open Error!" << endl;
+		exit(1);
+	}
+
+	char ch;
+	unsigned char cd = 0;
+	int count = 0;
+	int num_code = 0;
+	vector<unsigned char> compressedData;
+
+	// 生成编码映射    
+	map<char, string> codeMap;
+	if (root != NULL)generateCodes(root, "", codeMap);
+	if (head != NULL)generateCodes(head, "", codeMap);
+
+	while (infile.get(ch))
+	{
+		cd <<= 1;
+		if (ch == '1')
+			cd |= 1;
+		count++;
+		if (count == 8)//打包够了8位
+		{
+			compressedData.push_back(cd);
+			cd = 0;
+			count = 0;
+			num_code++;
+		}
+	}
+		if (count != 0)//没有满8位有多
+		{
+			//remain = 8 - count_8;
+			cd = cd << (8 - count);
+			num_code++;
+			compressedData.push_back(cd);
+		}
+	
+		for (int i = 0; i < compressedData.size(); i++)
+		{
+			unsigned char temp = compressedData[i];
+			outfile.write((char*)&temp, sizeof(temp));
+		}
+
+	infile.close();
+	outfile.close();
+
+	return 0; // 或其他适当的返回值    
+
+}
+
+void hfmtree::Output(string filename)
+{
+	ofstream outfile(filename, ios::out);
+	if (!outfile)
+	{
+		cout << "Outfile Open Error!" << endl;
+		exit(1);
+	}
+
+	if (root != NULL)output(root, "", cout);
+	if (head != NULL)output(head, "", cout);
+	if (root != NULL)output(root, "", outfile);
+	if (head != NULL)output(head, "", outfile);
+}
+//输出二叉树
+void hfmtree::output(hfmnode* t, string str, ostream& out)
+{
+	if (!t)
+	{
+		return;
+	}
+	out << str << t->weight;
+	if (t->left != NULL)
+	{
+		out << "─┐" << endl;
+		if (t->right)
+		{
+			output(t->left, str + "│　", out);
+		}
+		else
+		{
+			output(t->left, str + "　　", out);
+		}
+	}
+	if (t->right != NULL)
+	{
+		out << endl
+			<< str << "└─┐" << endl;
+		output(t->right, str + "　　", out);
+	}
+}
+
+//统计文章压缩率
+bool hfmtree::compressionrate(const char* filein, const char* fileout)
+{
+	if (filein == NULL || fileout == NULL)
+	{
+		cout << "该文件不存在！" << endl;
+		return false;
+	}
+	struct _stat64 in, out;
+	_stat64(filein, &in);
+	_stat64(fileout, &out);
+	cout << "压缩前文件大小：" << in.st_size << "B" << endl;
+	cout << "压缩后文件大小：" << out.st_size << "B" << endl;
+	cout << "压缩率：" << 100-((double)out.st_size / (double)in.st_size * (double)100) << "%" << endl;
+}
